@@ -48,7 +48,7 @@
         transform: translate(-50%, -50%);
         width: clamp(400px, 60vw, 1000px);
         height: clamp(400px, 60vw, 1000px);
-        background-image: url('icon-192.png');
+        background-image: url('icon-192-transparent.png');
         background-size: contain;
         background-position: center;
         background-repeat: no-repeat;
@@ -100,10 +100,13 @@
     }
 
     .owner-logo-small {
-        width: clamp(40px, 8vw, 60px);
-        height: clamp(40px, 8vw, 60px);
+        width: clamp(60px, 12vw, 80px);
+        height: clamp(60px, 12vw, 80px);
         flex-shrink: 0;
-        filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.4));
+        filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.5));
+        background: transparent;
+        border-radius: 0;
+        margin-left: 1.5rem;
     }
 
     @keyframes shimmer {
@@ -688,7 +691,7 @@
                     <div className="header-title">OWNER DASHBOARD</div>
                     <h1 className="owner-name">
                         {ownerData.name}
-                        <img src="icon-192.png" alt="OD Logo" className="owner-logo-small" />
+                        <img src="icon-192-transparent.png" alt="OD Logo" className="owner-logo-small" />
                     </h1>
                     <div className="quote">
                         "If you're not first, you're last"
