@@ -762,6 +762,18 @@
         return _statsCache[season];
     }
 
+    let _projectionsCache = {};
+    async function fetchSeasonProjections(season) {
+        if (_projectionsCache[season]) return _projectionsCache[season];
+        try {
+            _projectionsCache[season] = await fetchJSON(`${SLEEPER_BASE_URL}/projections/nfl/regular/${season}`);
+        } catch (e) {
+            console.warn('Projections fetch failed:', e);
+            _projectionsCache[season] = {};
+        }
+        return _projectionsCache[season];
+    }
+
     // Mock data for trophy case and events
     const ownerData = {
         earnings: "$12,450",
@@ -883,6 +895,7 @@
         const [standings, setStandings] = useState([]);
         const [viewingOwnerId, setViewingOwnerId] = useState(sleeperUserId);
         const [statsData, setStatsData] = useState({});
+        const [projectionsData, setProjectionsData] = useState({});
         const [currentLeague, setCurrentLeague] = useState(league);
         const [activeYear, setActiveYear] = useState(league.season);
 
@@ -920,12 +933,14 @@
 
                 setStandings(standingsData);
 
-                const [players, stats] = await Promise.all([
+                const [players, stats, projections] = await Promise.all([
                     fetchAllPlayers(),
-                    fetchSeasonStats(currentLeague.season)
+                    fetchSeasonStats(currentLeague.season),
+                    fetchSeasonProjections(currentLeague.season)
                 ]);
                 setPlayersData(players);
                 setStatsData(stats);
+                setProjectionsData(projections);
                 setLoading(false);
             } catch (err) {
                 console.error('Failed to load league details:', err);
@@ -1018,34 +1033,32 @@
             return player?.team || '';
         }
 
-        function getPlayerFantasyPts(playerId) {
+        function getPlayerStats(playerId) {
+            const player = playersData[playerId];
             const s = statsData[playerId];
-            if (!s) return null;
-            const pts = s.pts_half_ppr ?? s.pts_ppr ?? s.pts_std ?? null;
-            return pts !== null ? Number(pts).toFixed(1) : null;
-        }
+            const p = projectionsData[playerId];
 
-        function getPlayerStatLine(playerId) {
-            const s = statsData[playerId];
-            if (!s) return null;
-            const pos = getPlayerPosition(playerId);
-            const fmt = (n) => n != null ? Math.round(n).toLocaleString() : '0';
-            switch (pos) {
-                case 'QB':
-                    return `${fmt(s.pass_yd)} YD · ${fmt(s.pass_td)} TD · ${fmt(s.pass_int)} INT`;
-                case 'RB':
-                    return `${fmt(s.rush_yd)} YD · ${fmt(s.rush_td)} TD · ${fmt(s.rec)} REC`;
-                case 'WR':
-                    return `${fmt(s.rec)} REC · ${fmt(s.rec_yd)} YD · ${fmt(s.rec_td)} TD`;
-                case 'TE':
-                    return `${fmt(s.rec)} REC · ${fmt(s.rec_yd)} YD · ${fmt(s.rec_td)} TD`;
-                case 'K':
-                    return `${fmt(s.fgm)} FG · ${fmt(s.xpm)} XP`;
-                case 'DEF':
-                    return s.pts_allow != null ? `${fmt(s.pts_allow)} PA` : null;
-                default:
-                    return null;
+            // Years of experience
+            const yrs = player?.years_exp != null ? player.years_exp : '-';
+
+            // Fantasy points (half PPR preferred)
+            const rawPts = s ? (s.pts_half_ppr ?? s.pts_ppr ?? s.pts_std ?? null) : null;
+            const pts = rawPts !== null ? Number(rawPts).toFixed(1) : '-';
+
+            // Games played
+            const gp = s?.gp != null ? s.gp : '-';
+
+            // Average points per game
+            let avg = '-';
+            if (rawPts !== null && s?.gp && s.gp > 0) {
+                avg = (rawPts / s.gp).toFixed(1);
             }
+
+            // Projected points
+            const rawProj = p ? (p.pts_half_ppr ?? p.pts_ppr ?? p.pts_std ?? null) : null;
+            const proj = rawProj !== null ? Number(rawProj).toFixed(1) : '-';
+
+            return { yrs, pts, gp, avg, proj };
         }
 
         function getPositionColor(pos) {
@@ -1089,11 +1102,32 @@
         const viewingOwner = standings.find(t => t.userId === viewingOwnerId);
         const isViewingMyTeam = viewingOwnerId === sleeperUserId;
 
-        // PlayerRow with gold position box, clickable name, stats on the right
+        // Stat column style shared by header and rows
+        const statColStyle = { width: '42px', textAlign: 'center', fontSize: '0.65rem', flexShrink: 0 };
+
+        // Column header row for stat columns
+        function StatHeader() {
+            return (
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0.3rem 0.6rem',
+                    marginBottom: '0.2rem',
+                    gap: '0.5rem'
+                }}>
+                    <span style={{ width: '36px', flexShrink: 0 }}></span>
+                    <span style={{ flex: 1 }}></span>
+                    {['YRS', 'PTS', 'GP', 'AVG', 'PROJ'].map(label => (
+                        <span key={label} style={{ ...statColStyle, color: 'var(--gold)', fontWeight: '700', letterSpacing: '0.05em', opacity: 0.8 }}>{label}</span>
+                    ))}
+                </div>
+            );
+        }
+
+        // PlayerRow with gold position box, clickable name, 5 stat columns
         function PlayerRow({ playerId, section }) {
             const pos = getPlayerPosition(playerId);
-            const pts = getPlayerFantasyPts(playerId);
-            const statLine = getPlayerStatLine(playerId);
+            const stats = getPlayerStats(playerId);
             const team = getPlayerTeam(playerId);
             const fpUrl = fantasyProsUrl(playerId);
             const borderColor = section === 'starter' ? 'var(--gold)' : section === 'ir' ? '#E74C3C' : section === 'taxi' ? '#3498DB' : 'transparent';
@@ -1133,6 +1167,7 @@
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
+                            flex: 1,
                             color: 'var(--white)',
                             fontSize: '0.92rem',
                             overflow: 'hidden',
@@ -1140,41 +1175,19 @@
                             whiteSpace: 'nowrap',
                             textDecoration: 'none',
                             transition: 'color 0.2s',
-                            flexShrink: 0
+                            minWidth: 0
                         }}
                         onMouseEnter={e => e.target.style.color = 'var(--gold)'}
                         onMouseLeave={e => e.target.style.color = 'var(--white)'}
                     >
                         {getPlayerName(playerId)} <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.5 }}>{team}</span>
                     </a>
-                    {/* Stats centered in middle */}
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
-                        {statLine && (
-                            <span style={{
-                                fontSize: '0.65rem',
-                                color: 'var(--silver)',
-                                opacity: 0.6,
-                                letterSpacing: '0.02em',
-                                whiteSpace: 'nowrap'
-                            }}>
-                                {statLine}
-                            </span>
-                        )}
-                    </div>
-                    {/* Points on the right */}
-                    {pts && (
-                        <span style={{
-                            fontSize: '0.78rem',
-                            color: 'var(--gold)',
-                            fontWeight: '700',
-                            whiteSpace: 'nowrap',
-                            minWidth: '42px',
-                            textAlign: 'right',
-                            flexShrink: 0
-                        }}>
-                            {pts}
-                        </span>
-                    )}
+                    {/* Stat columns: YRS PTS GP AVG PROJ */}
+                    <span style={{ ...statColStyle, color: 'var(--silver)', opacity: 0.7 }}>{stats.yrs}</span>
+                    <span style={{ ...statColStyle, color: 'var(--gold)', fontWeight: '700' }}>{stats.pts}</span>
+                    <span style={{ ...statColStyle, color: 'var(--silver)', opacity: 0.7 }}>{stats.gp}</span>
+                    <span style={{ ...statColStyle, color: 'var(--silver)', opacity: 0.7 }}>{stats.avg}</span>
+                    <span style={{ ...statColStyle, color: '#4ECDC4', fontWeight: '600' }}>{stats.proj}</span>
                 </div>
             );
         }
@@ -1189,6 +1202,7 @@
 
             return (
                 <>
+                    <StatHeader />
                     {starters.length > 0 && (
                         <div style={{ marginBottom: '1.25rem' }}>
                             <div style={{ color: 'var(--gold)', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem', paddingBottom: '0.4rem', borderBottom: '2px solid var(--gold)', letterSpacing: '0.08em' }}>STARTERS</div>
