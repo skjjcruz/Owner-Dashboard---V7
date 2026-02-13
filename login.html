@@ -310,6 +310,8 @@
                 };
 
                 localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+                // Sync username to Team Comps page so it auto-logs in
+                localStorage.setItem('od_locked_username_v2', username);
                 window.location.href = 'index.html';
             } catch (e) {
                 showError('Failed to verify Sleeper username. Check your connection and try again.');

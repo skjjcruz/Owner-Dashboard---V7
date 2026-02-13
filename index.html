@@ -740,6 +740,10 @@
     try {
         const credentials = JSON.parse(authData);
         sleeperUsername = credentials.username || '';
+        // Sync username to Team Comps page localStorage key so it auto-logs in
+        if (sleeperUsername) {
+            localStorage.setItem('od_locked_username_v2', sleeperUsername);
+        }
     } catch (e) {
         localStorage.removeItem(AUTH_KEY);
         window.location.href = 'login.html';
