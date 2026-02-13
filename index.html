@@ -1145,20 +1145,23 @@
         // Stat column style shared by header and rows
         const statColStyle = { width: '42px', textAlign: 'center', fontSize: '0.65rem', flexShrink: 0 };
 
-        // Column header row for stat columns
-        function StatHeader() {
+        // Column header row for stat columns — merged into section labels
+        const statLabels = ['YRS', 'PTS', 'GP', 'AVG', 'PROJ'];
+
+        function SectionLabel({ label, color, borderColor, borderWidth }) {
             return (
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    padding: '0.3rem 0.6rem',
-                    marginBottom: '0.2rem',
+                    marginBottom: '0.5rem',
+                    paddingBottom: '0.4rem',
+                    borderBottom: `${borderWidth || '1px'} solid ${borderColor || color}`,
                     gap: '0.5rem'
                 }}>
                     <span style={{ width: '36px', flexShrink: 0 }}></span>
-                    <span style={{ flex: 1 }}></span>
-                    {['YRS', 'PTS', 'GP', 'AVG', 'PROJ'].map(label => (
-                        <span key={label} style={{ ...statColStyle, color: 'var(--gold)', fontWeight: '700', letterSpacing: '0.05em', opacity: 0.8 }}>{label}</span>
+                    <span style={{ flex: 1, color: color, fontSize: '0.85rem', fontWeight: '700', letterSpacing: '0.08em' }}>{label}</span>
+                    {statLabels.map(l => (
+                        <span key={l} style={{ ...statColStyle, color: 'var(--gold)', fontWeight: '700', letterSpacing: '0.05em', opacity: 0.8 }}>{l}</span>
                     ))}
                 </div>
             );
@@ -1242,28 +1245,27 @@
 
             return (
                 <>
-                    <StatHeader />
                     {starters.length > 0 && (
                         <div style={{ marginBottom: '1.25rem' }}>
-                            <div style={{ color: 'var(--gold)', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem', paddingBottom: '0.4rem', borderBottom: '2px solid var(--gold)', letterSpacing: '0.08em' }}>STARTERS</div>
+                            <SectionLabel label="STARTERS" color="var(--gold)" borderColor="var(--gold)" borderWidth="2px" />
                             {starters.map((id, i) => <PlayerRow key={i} playerId={id} section="starter" />)}
                         </div>
                     )}
                     {bench.length > 0 && (
                         <div style={{ marginBottom: '1.25rem' }}>
-                            <div style={{ color: 'var(--silver)', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem', paddingBottom: '0.4rem', borderBottom: '1px solid rgba(255,255,255,0.15)', letterSpacing: '0.08em' }}>BENCH</div>
+                            <SectionLabel label="BENCH" color="var(--silver)" borderColor="rgba(255,255,255,0.15)" />
                             {bench.map((id, i) => <PlayerRow key={i} playerId={id} section="bench" />)}
                         </div>
                     )}
                     {reserve.length > 0 && (
                         <div style={{ marginBottom: '1.25rem' }}>
-                            <div style={{ color: '#E74C3C', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem', paddingBottom: '0.4rem', borderBottom: '1px solid rgba(231,76,60,0.3)', letterSpacing: '0.08em' }}>INJURED RESERVE</div>
+                            <SectionLabel label="INJURED RESERVE" color="#E74C3C" borderColor="rgba(231,76,60,0.3)" />
                             {reserve.map((id, i) => <PlayerRow key={i} playerId={id} section="ir" />)}
                         </div>
                     )}
                     {taxi.length > 0 && (
                         <div>
-                            <div style={{ color: '#3498DB', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem', paddingBottom: '0.4rem', borderBottom: '1px solid rgba(52,152,219,0.3)', letterSpacing: '0.08em' }}>TAXI SQUAD</div>
+                            <SectionLabel label="TAXI SQUAD" color="#3498DB" borderColor="rgba(52,152,219,0.3)" />
                             {taxi.map((id, i) => <PlayerRow key={i} playerId={id} section="taxi" />)}
                         </div>
                     )}
@@ -1693,24 +1695,28 @@
                         <div className="league-window">
                             <div className="league-window-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                                 <div><span>⚡</span> SLEEPER LEAGUES</div>
-                                <select 
-                                    value={selectedYear}
-                                    onChange={(e) => setSelectedYear(e.target.value)}
-                                    style={{
-                                        padding: '0.25rem 0.5rem',
-                                        background: 'var(--black)',
-                                        border: '1px solid var(--gold)',
-                                        borderRadius: '4px',
-                                        color: 'var(--gold)',
-                                        fontSize: '0.75rem',
-                                        fontFamily: 'Oswald, sans-serif',
-                                        cursor: 'pointer'
-                                    }}
-                                >
+                                <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                                     {AVAILABLE_YEARS.map(year => (
-                                        <option key={year} value={year}>{year}</option>
+                                        <div
+                                            key={year}
+                                            onClick={() => setSelectedYear(year)}
+                                            style={{
+                                                padding: '0.2rem 0.55rem',
+                                                borderRadius: '4px',
+                                                fontSize: '0.72rem',
+                                                fontWeight: '700',
+                                                fontFamily: 'Oswald, sans-serif',
+                                                color: year === selectedYear ? 'var(--black)' : 'var(--silver)',
+                                                background: year === selectedYear ? 'var(--gold)' : 'transparent',
+                                                border: year === selectedYear ? '1px solid var(--gold)' : '1px solid rgba(212, 175, 55, 0.3)',
+                                                cursor: year === selectedYear ? 'default' : 'pointer',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            {year}
+                                        </div>
                                     ))}
-                                </select>
+                                </div>
                             </div>
 
                             <div className="league-window-scroll">
