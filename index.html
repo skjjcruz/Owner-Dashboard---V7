@@ -641,6 +641,10 @@
         will-change: transform;
     }
 
+    .news-ticker-container:hover .news-ticker {
+        animation-play-state: paused;
+    }
+
     @keyframes scroll-ticker {
         0% {
             transform: translateX(100%);
@@ -670,6 +674,16 @@
         color: var(--white);
     }
 
+    .news-item-link {
+        text-decoration: none;
+        color: var(--white);
+        transition: color 0.2s;
+    }
+
+    .news-item-link:hover {
+        color: var(--gold);
+    }
+
     .news-separator {
         display: inline-block;
         width: 6px;
@@ -677,6 +691,7 @@
         background: var(--gold);
         border-radius: 50%;
         margin: 0 1.5rem;
+        flex-shrink: 0;
     }
 
     /* Mobile adjustments */
@@ -1088,6 +1103,44 @@
             _projectionsCache[season] = {};
         }
         return _projectionsCache[season];
+    }
+
+    // ===== NFL NEWS FEED =====
+    const NFL_NEWS_CACHE_KEY = 'od_nfl_news';
+    const NFL_NEWS_TTL = 10 * 60 * 1000; // 10 minutes
+
+    async function fetchNFLNews() {
+        // Check cache first
+        try {
+            const cached = JSON.parse(localStorage.getItem(NFL_NEWS_CACHE_KEY) || 'null');
+            if (cached && Date.now() - cached.ts < NFL_NEWS_TTL) return cached.items;
+        } catch (e) {}
+
+        const RSS_FEEDS = [
+            'https://www.espn.com/espn/rss/nfl/news',
+            'https://api.foxsports.com/v2/content/optimized-rss?partnerKey=MB0Wehpmuj2lUhuRhQaafhBjAJqaPU244mlTDK1i&size=30&tags=fs/nfl',
+        ];
+
+        for (const feedUrl of RSS_FEEDS) {
+            try {
+                const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
+                const resp = await fetch(proxyUrl);
+                if (!resp.ok) continue;
+                const data = await resp.json();
+                if (data.status === 'ok' && data.items && data.items.length > 0) {
+                    const items = data.items.slice(0, 15).map(item => ({
+                        title: item.title,
+                        link: item.link,
+                        pubDate: item.pubDate
+                    }));
+                    localStorage.setItem(NFL_NEWS_CACHE_KEY, JSON.stringify({ ts: Date.now(), items }));
+                    return items;
+                }
+            } catch (e) {
+                console.warn('RSS feed fetch failed:', e);
+            }
+        }
+        return null; // All feeds failed
     }
 
     // Mock data for trophy case and events
@@ -1841,6 +1894,22 @@
 
         const upcomingEvents = getUpcomingEvents(calendarEvents);
 
+        // News ticker state
+        const [newsItems, setNewsItems] = useState([]);
+
+        useEffect(() => {
+            fetchNFLNews().then(items => {
+                if (items && items.length > 0) setNewsItems(items);
+            });
+            // Refresh every 10 minutes
+            const interval = setInterval(() => {
+                fetchNFLNews().then(items => {
+                    if (items && items.length > 0) setNewsItems(items);
+                });
+            }, 10 * 60 * 1000);
+            return () => clearInterval(interval);
+        }, []);
+
         function handleSaveEvent(eventData) {
             let updated;
             const existing = calendarEvents.find(e => e.id === eventData.id);
@@ -2188,20 +2257,26 @@
 
                 {/* News Ticker */}
                 <div className="news-ticker-container">
-                    <div className="news-ticker">
+                    <div className="news-ticker" style={{ animationDuration: newsItems.length > 0 ? `${Math.max(newsItems.length * 4, 30)}s` : '30s' }}>
                         <span className="news-ticker-label">NFL NEWS</span>
-                        <span className="news-item">Chiefs sign star QB to record-breaking extension</span>
-                        <span className="news-separator"></span>
-                        <span className="news-item">49ers trade for elite pass rusher ahead of deadline</span>
-                        <span className="news-separator"></span>
-                        <span className="news-item">Cowboys WR reaches 1,000 yards in historic season</span>
-                        <span className="news-separator"></span>
-                        <span className="news-item">Eagles secure playoff spot with dominant win</span>
-                        <span className="news-separator"></span>
-                        <span className="news-item">Bengals RB suffers season-ending injury</span>
-                        <span className="news-separator"></span>
-                        <span className="news-item">Patriots name new offensive coordinator</span>
-                        <span className="news-separator"></span>
+                        {newsItems.length > 0 ? (
+                            newsItems.map((item, idx) => (
+                                React.createElement(React.Fragment, { key: idx },
+                                    React.createElement('a', {
+                                        href: item.link,
+                                        target: '_blank',
+                                        rel: 'noopener noreferrer',
+                                        className: 'news-item news-item-link'
+                                    }, item.title),
+                                    idx < newsItems.length - 1 && React.createElement('span', { className: 'news-separator' })
+                                )
+                            ))
+                        ) : (
+                            React.createElement(React.Fragment, null,
+                                React.createElement('span', { className: 'news-item' }, 'Loading NFL news...'),
+                                React.createElement('span', { className: 'news-separator' })
+                            )
+                        )}
                     </div>
                 </div>
 
