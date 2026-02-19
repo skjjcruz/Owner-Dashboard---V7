@@ -1149,63 +1149,6 @@
         return _projectionsCache[season];
     }
 
-    // ===== CSV DATA SOURCES =====
-    function parseCSV(text) {
-        const lines = text.trim().split('\n');
-        if (lines.length < 2) return [];
-        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-        return lines.slice(1).map(line => {
-            const values = [];
-            let current = '';
-            let inQuotes = false;
-            for (let i = 0; i < line.length; i++) {
-                if (line[i] === '"') { inQuotes = !inQuotes; }
-                else if (line[i] === ',' && !inQuotes) { values.push(current.trim()); current = ''; }
-                else { current += line[i]; }
-            }
-            values.push(current.trim());
-            const obj = {};
-            headers.forEach((h, i) => { obj[h] = values[i] || ''; });
-            return obj;
-        });
-    }
-
-    let _playerCsvCache = null;
-    async function fetchPlayerCSV() {
-        if (_playerCsvCache !== null) return _playerCsvCache;
-        try {
-            const res = await fetch('./player.csv');
-            if (!res.ok) { _playerCsvCache = {}; return {}; }
-            const text = await res.text();
-            const rows = parseCSV(text);
-            const map = {};
-            rows.forEach(row => { if (row.player_id) map[String(row.player_id)] = row; });
-            _playerCsvCache = map;
-        } catch (e) {
-            console.warn('player.csv load failed:', e);
-            _playerCsvCache = {};
-        }
-        return _playerCsvCache;
-    }
-
-    let _enrichmentCache = null;
-    async function fetchEnrichmentCSV() {
-        if (_enrichmentCache !== null) return _enrichmentCache;
-        try {
-            const res = await fetch('./player-enrichment.csv');
-            if (!res.ok) { _enrichmentCache = {}; return {}; }
-            const text = await res.text();
-            const rows = parseCSV(text);
-            const map = {};
-            rows.forEach(row => { if (row.player_id) map[String(row.player_id)] = row; });
-            _enrichmentCache = map;
-        } catch (e) {
-            console.warn('player-enrichment.csv load failed:', e);
-            _enrichmentCache = {};
-        }
-        return _enrichmentCache;
-    }
-
     // ===== NFL NEWS FEED =====
     const NFL_NEWS_CACHE_KEY = 'od_nfl_news';
     const NFL_NEWS_TTL = 10 * 60 * 1000; // 10 minutes
@@ -1368,9 +1311,6 @@
         const [projectionsData, setProjectionsData] = useState({});
         const [currentLeague, setCurrentLeague] = useState(league);
         const [activeYear, setActiveYear] = useState(league.season);
-        const [playerCsvData, setPlayerCsvData] = useState({});
-        const [enrichmentData, setEnrichmentData] = useState({});
-        const [selectedPlayerId, setSelectedPlayerId] = useState(null);
 
         useEffect(() => {
             loadLeagueDetails();
@@ -1406,18 +1346,14 @@
 
                 setStandings(standingsData);
 
-                const [players, stats, projections, csvData, enrichData] = await Promise.all([
+                const [players, stats, projections] = await Promise.all([
                     fetchAllPlayers(),
                     fetchSeasonStats(currentLeague.season),
-                    fetchSeasonProjections(currentLeague.season),
-                    fetchPlayerCSV(),
-                    fetchEnrichmentCSV()
+                    fetchSeasonProjections(currentLeague.season)
                 ]);
                 setPlayersData(players);
                 setStatsData(stats);
                 setProjectionsData(projections);
-                setPlayerCsvData(csvData);
-                setEnrichmentData(enrichData);
                 setLoading(false);
             } catch (err) {
                 console.error('Failed to load league details:', err);
@@ -1604,79 +1540,6 @@
             );
         }
 
-        // Player detail modal - shows source (player.csv) and college (player-enrichment.csv)
-        function PlayerModal({ playerId, onClose }) {
-            if (!playerId) return null;
-            const player = playersData[playerId];
-            const stats = getPlayerStats(playerId);
-            const pos = getPlayerPosition(playerId);
-            const team = getPlayerTeam(playerId);
-            const fpUrl = fantasyProsUrl(playerId);
-            const csvRow = playerCsvData[String(playerId)] || null;
-            const enrichRow = enrichmentData[String(playerId)] || null;
-            const source = csvRow?.source || '';
-            const college = enrichRow?.college || '';
-            const detailRows = [
-                source && ['SOURCE', source, 'var(--white)'],
-                college && ['COLLEGE', college, 'var(--white)'],
-                player?.years_exp != null && ['EXPERIENCE', `${player.years_exp} yr${player.years_exp !== 1 ? 's' : ''}`, 'var(--silver)'],
-            ].filter(Boolean);
-            return (
-                <div
-                    onClick={onClose}
-                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.78)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
-                >
-                    <div
-                        onClick={e => e.stopPropagation()}
-                        style={{ background: 'var(--black)', border: '2px solid var(--gold)', borderRadius: '12px', padding: '1.5rem', width: '100%', maxWidth: '400px', position: 'relative' }}
-                    >
-                        <button
-                            onClick={onClose}
-                            style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', background: 'none', border: 'none', color: 'var(--silver)', fontSize: '1.2rem', cursor: 'pointer', padding: '0.25rem', lineHeight: 1 }}
-                        >✕</button>
-                        {/* Header */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem', paddingRight: '2rem' }}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '48px', height: '28px', fontSize: '0.75rem', fontWeight: '700', color: getPositionColor(pos), border: '1.5px solid var(--gold)', borderRadius: '4px', background: 'rgba(212,175,55,0.08)', flexShrink: 0 }}>{pos}</span>
-                            <div>
-                                <div style={{ color: 'var(--white)', fontSize: '1.1rem', fontWeight: '700', fontFamily: 'Oswald, sans-serif', letterSpacing: '0.04em' }}>{getPlayerName(playerId)}</div>
-                                <div style={{ color: 'var(--silver)', fontSize: '0.78rem', opacity: 0.8 }}>{team}</div>
-                            </div>
-                        </div>
-                        {/* Detail rows */}
-                        {detailRows.length > 0 && (
-                            <div style={{ marginBottom: '1.25rem' }}>
-                                {detailRows.map(([label, val, color]) => (
-                                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                                        <span style={{ color: 'var(--silver)', fontSize: '0.72rem', fontWeight: '700', letterSpacing: '0.06em', opacity: 0.7 }}>{label}</span>
-                                        <span style={{ color: color, fontSize: '0.85rem', fontWeight: '600' }}>{val}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        {/* Stats */}
-                        <div style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '0.75rem', marginBottom: '1rem' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '0.25rem', textAlign: 'center' }}>
-                                {[['PTS', stats.pts, 'var(--gold)'], ['GP', stats.gp, 'var(--silver)'], ['AVG', stats.avg, 'var(--silver)'], ['PROJ', stats.proj, '#4ECDC4'], ['YRS', stats.yrs, 'var(--silver)']].map(([label, val, color]) => (
-                                    <div key={label}>
-                                        <div style={{ color: 'var(--gold)', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.05em', opacity: 0.7 }}>{label}</div>
-                                        <div style={{ color: color, fontSize: '0.92rem', fontWeight: '700' }}>{val}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        {/* FantasyPros link */}
-                        {fpUrl && (
-                            <a href={fpUrl} target="_blank" rel="noopener noreferrer"
-                                style={{ display: 'block', textAlign: 'center', padding: '0.45rem', color: 'var(--gold)', fontSize: '0.72rem', fontWeight: '700', letterSpacing: '0.06em', textDecoration: 'none', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', transition: 'background 0.2s' }}
-                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.1)'}
-                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                            >VIEW ON FANTASYPROS ↗</a>
-                        )}
-                    </div>
-                </div>
-            );
-        }
-
         // PlayerRow with gold position box, clickable name, 5 stat columns
         function PlayerRow({ playerId, section }) {
             const pos = getPlayerPosition(playerId);
@@ -1714,9 +1577,11 @@
                     }}>
                         {pos}
                     </span>
-                    {/* Player name + team — click opens detail modal */}
-                    <span
-                        onClick={() => setSelectedPlayerId(playerId)}
+                    {/* Player name + team */}
+                    <a
+                        href={fpUrl || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         style={{
                             flex: 1,
                             color: 'var(--white)',
@@ -1724,28 +1589,15 @@
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
-                            cursor: 'pointer',
+                            textDecoration: 'none',
                             transition: 'color 0.2s',
                             minWidth: 0
                         }}
-                        onMouseEnter={e => e.currentTarget.style.color = 'var(--gold)'}
-                        onMouseLeave={e => e.currentTarget.style.color = 'var(--white)'}
+                        onMouseEnter={e => e.target.style.color = 'var(--gold)'}
+                        onMouseLeave={e => e.target.style.color = 'var(--white)'}
                     >
                         {getPlayerName(playerId)} <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.5 }}>{team}</span>
-                    </span>
-                    {/* FantasyPros quick-link icon */}
-                    {fpUrl && (
-                        <a
-                            href={fpUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            title="View on FantasyPros"
-                            style={{ color: 'rgba(212,175,55,0.35)', fontSize: '0.65rem', flexShrink: 0, textDecoration: 'none', transition: 'color 0.2s' }}
-                            onMouseEnter={e => e.currentTarget.style.color = 'var(--gold)'}
-                            onMouseLeave={e => e.currentTarget.style.color = 'rgba(212,175,55,0.35)'}
-                        >↗</a>
-                    )}
+                    </a>
                     {/* Stat columns: YRS PTS GP AVG PROJ */}
                     <span style={{ ...statColStyle, color: 'var(--silver)', opacity: 0.7 }}>{stats.yrs}</span>
                     <span style={{ ...statColStyle, color: 'var(--gold)', fontWeight: '700' }}>{stats.pts}</span>
@@ -2062,9 +1914,6 @@
 
                     </div>
                 </div>
-                {selectedPlayerId && (
-                    <PlayerModal playerId={selectedPlayerId} onClose={() => setSelectedPlayerId(null)} />
-                )}
             </div>
         );
     }
