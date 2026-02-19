@@ -95,7 +95,7 @@
         /* ---- Three-column grid ---- */
         .tracker-grid {
             display: grid;
-            grid-template-columns: 260px 1fr 300px;
+            grid-template-columns: 260px 350px 1fr;
             height: calc(100vh - 46px);
             overflow: hidden;
         }
@@ -369,7 +369,7 @@
         }
         .targets-table td:nth-child(1),
         .targets-table td:nth-child(2) { text-align: left; }
-        .targets-table td:nth-child(2) { max-width: 88px; overflow: hidden; text-overflow: ellipsis; }
+        .targets-table td:nth-child(2) { overflow: hidden; text-overflow: ellipsis; }
         .targets-table tr:hover td { background: rgba(212,175,55,0.04); }
         .del-btn {
             background: transparent;
@@ -592,7 +592,27 @@
                 saveTargets(leagueId, { startingBudget, targets });
             }, [targets, startingBudget, leagueId]);
 
-            // ---- Stats helper ----
+            // ---- Helpers ----
+
+            // Raw pts for sorting (returns -1 when no data so players with data sort above those without)
+            function getPts(id) {
+                const s = statsData[id];
+                const raw = s ? (s.pts_half_ppr ?? s.pts_ppr ?? s.pts_std ?? null) : null;
+                return raw !== null ? Number(raw) : -1;
+            }
+
+            // FantasyPros player page URL derived from full name
+            function fpUrl(name) {
+                if (!name) return null;
+                const slug = name
+                    .toLowerCase()
+                    .replace(/['\u2019.]/g, '')
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/-+/g, '-')
+                    .replace(/^-|-$/g, '');
+                return `https://www.fantasypros.com/nfl/players/${slug}.php`;
+            }
+
             function getStats(playerId) {
                 const player = playersData[playerId];
                 const s = statsData[playerId];
@@ -621,8 +641,12 @@
                     if (!g[grp]) g[grp] = [];
                     g[grp].push({ id, p });
                 }
+                // Sort each position group by 2025 pts descending
+                for (const grp of Object.keys(g)) {
+                    g[grp].sort((a, b) => getPts(b.id) - getPts(a.id));
+                }
                 return g;
-            }, [myRoster, playersData]);
+            }, [myRoster, playersData, statsData]);
             const myGroups = Object.keys(myGrouped).sort((a, b) => posOrder(a) - posOrder(b));
 
             const freeAgents = useMemo(() => {
@@ -641,8 +665,13 @@
                         norm: normPos(p.position),
                         team: p.team
                     }))
-                    .sort((a, b) => posOrder(a.pos) - posOrder(b.pos) || a.name.localeCompare(b.name));
-            }, [playersData, takenIds]);
+                    .sort((a, b) => {
+                        const posOrd = posOrder(a.pos) - posOrder(b.pos);
+                        if (posOrd !== 0) return posOrd;
+                        // Within the same position group, highest pts first
+                        return getPts(b.id) - getPts(a.id);
+                    });
+            }, [playersData, takenIds, statsData]);
 
             const filteredFAs = useMemo(() => freeAgents.filter(fa => {
                 const posOk  = posFilter === 'ALL' || fa.norm === posFilter || fa.pos === posFilter;
@@ -783,13 +812,20 @@
                                             <div className="pos-group-label">{grp}</div>
                                             {myGrouped[grp].map(({ id, p }) => {
                                                 const st = getStats(id);
+                                                const pName = p.full_name || `${p.first_name||''} ${p.last_name||''}`.trim() || id;
+                                                const url = fpUrl(pName);
                                                 return (
                                                     <div key={id} className="player-row" style={{ cursor:'default' }}>
                                                         <span className="pos-badge" style={{ color: posColor(p.position) }}>
                                                             {p.position || '?'}
                                                         </span>
                                                         <span className="player-name">
-                                                            {p.full_name || `${p.first_name||''} ${p.last_name||''}`.trim() || id}
+                                                            <a href={url || '#'} target="_blank" rel="noopener noreferrer"
+                                                                style={{ color:'inherit', textDecoration:'none' }}
+                                                                onMouseEnter={e => e.currentTarget.style.color='var(--gold)'}
+                                                                onMouseLeave={e => e.currentTarget.style.color='inherit'}>
+                                                                {pName}
+                                                            </a>
                                                             <span className="player-team"> {p.team||''}</span>
                                                         </span>
                                                         <span className="sc" style={{ width:`${SW.yrs}px`, color:'var(--silver)', opacity:0.65 }}>{st.yrs}</span>
@@ -857,6 +893,7 @@
                                     )}
                                     {filteredFAs.map(fa => {
                                         const st = getStats(fa.id);
+                                        const url = fpUrl(fa.name);
                                         return (
                                             <div key={fa.id} className="player-row"
                                                 onClick={() => { setQuickPlayer(fa); setQuickCost(''); }}>
@@ -864,7 +901,13 @@
                                                     {fa.pos}
                                                 </span>
                                                 <span className="player-name">
-                                                    {fa.name}
+                                                    <a href={url || '#'} target="_blank" rel="noopener noreferrer"
+                                                        onClick={e => e.stopPropagation()}
+                                                        style={{ color:'inherit', textDecoration:'none' }}
+                                                        onMouseEnter={e => e.currentTarget.style.color='var(--gold)'}
+                                                        onMouseLeave={e => e.currentTarget.style.color='inherit'}>
+                                                        {fa.name}
+                                                    </a>
                                                     <span className="player-team"> {fa.team}</span>
                                                 </span>
                                                 <span className="sc" style={{ width:`${SW.yrs}px`, color:'var(--silver)', opacity:0.65 }}>{st.yrs}</span>
