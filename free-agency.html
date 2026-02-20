@@ -397,16 +397,19 @@
             if (['LB','OLB','ILB','MLB'].includes(pos)) return 'LB';
             return pos;
         }
-        const POS_ORDER = { QB:0, RB:1, WR:2, TE:3, K:4, DL:5, LB:6, DB:7 };
+        const POS_ORDER = { QB:0, RB:1, WR:2, TE:3, K:4, DEF:5, DL:5, LB:6, DB:7 };
         const posOrder  = pos => POS_ORDER[normPos(pos)] ?? 9;
 
-        const FA_POS_FILTERS = ['ALL','QB','RB','WR','TE','K','LB','DL','DB'];
-        const RELEVANT_POS   = new Set([
+        // Base sets — overridden per-league below
+        const IDP_POS_FILTERS = ['ALL','QB','RB','WR','TE','K','LB','DL','DB'];
+        const DEF_POS_FILTERS = ['ALL','QB','RB','WR','TE','K','DEF'];
+        const IDP_RELEVANT = new Set([
             'QB','RB','WR','TE','K',
             'LB','OLB','ILB','MLB',
             'DL','DE','DT','NT','IDL','EDGE',
             'DB','CB','S','SS','FS'
         ]);
+        const DEF_RELEVANT = new Set(['QB','RB','WR','TE','K','DEF']);
 
         // Shared stat column widths (px)
         const SW = { yrs:24, pts:34, gp:22, avg:32 };
@@ -566,6 +569,15 @@
                 [allRosters]
             );
 
+            // Detect league type from roster_positions: DEF = team defense, otherwise IDP
+            const isIDP = useMemo(() => {
+                const rp = leagueInfo?.roster_positions || [];
+                return !rp.includes('DEF');
+            }, [leagueInfo]);
+
+            const posFilters    = isIDP ? IDP_POS_FILTERS : DEF_POS_FILTERS;
+            const relevantPosSet = isIDP ? IDP_RELEVANT    : DEF_RELEVANT;
+
             const myGrouped = useMemo(() => {
                 if (!myRoster?.players || !Object.keys(playersData).length) return {};
                 const g = {};
@@ -591,7 +603,7 @@
                         !takenIds.has(id) &&
                         p.team &&
                         p.team.trim() !== '' &&
-                        RELEVANT_POS.has(p.position)
+                        relevantPosSet.has(p.position)
                     )
                     .map(([id, p]) => ({
                         id,
@@ -606,7 +618,7 @@
                         // Within the same position group, highest pts first
                         return getPts(b.id) - getPts(a.id);
                     });
-            }, [playersData, takenIds, statsData]);
+            }, [playersData, takenIds, statsData, isIDP]);
 
             const filteredFAs = useMemo(() => {
                 const list = freeAgents.filter(fa => {
@@ -790,7 +802,7 @@
                                         </span>
                                     </div>
                                     <div className="ph-sub">
-                                        {FA_POS_FILTERS.map(p => (
+                                        {posFilters.map(p => (
                                             <button key={p} className={`filter-btn${posFilter===p?' active':''}`}
                                                 onClick={() => setPosFilter(p)}>{p}</button>
                                         ))}
