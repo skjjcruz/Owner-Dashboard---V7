@@ -101,16 +101,35 @@
         }
         .panel:last-child { border-right: none; }
         .panel-header {
-            padding: 0.5rem 0.7rem;
             background: rgba(212,175,55,0.06);
             border-bottom: 1px solid rgba(212,175,55,0.18);
             font-family: 'Bebas Neue', cursive;
             font-size: 0.95rem;
             color: var(--gold);
             letter-spacing: 0.1em;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .ph-title {
             display: flex;
             align-items: center;
             gap: 0.4rem;
+            padding: 0 0.7rem;
+            height: 38px;
+            overflow: hidden;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        /* Second row of each panel-header — fixed height for cross-column alignment */
+        .ph-sub {
+            display: flex;
+            align-items: center;
+            gap: 0.2rem;
+            padding: 0 0.5rem;
+            height: 36px;
+            overflow: hidden;
+            border-top: 1px solid rgba(212,175,55,0.1);
             flex-shrink: 0;
         }
         .panel-body {
@@ -129,7 +148,7 @@
         }
         .stat-lbl {
             font-family: 'Bebas Neue', cursive;
-            font-size: 0.66rem;
+            font-size: 0.72rem;
             color: var(--gold);
             letter-spacing: 0.07em;
             opacity: 0.7;
@@ -194,16 +213,7 @@
             opacity: 0.72;
         }
 
-        /* ---- Center: filter + search ---- */
-        .filter-bar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.2rem;
-            padding: 0.35rem 0.5rem;
-            border-bottom: 1px solid rgba(212,175,55,0.1);
-            flex-shrink: 0;
-            align-items: center;
-        }
+        /* ---- Center: filter buttons + search (inside .ph-sub) ---- */
         .filter-btn {
             background: transparent;
             border: 1px solid rgba(212,175,55,0.27);
@@ -270,13 +280,6 @@
             text-align: right;
         }
         .budget-input-inline:focus { outline: none; }
-        .add-target-form {
-            display: flex;
-            gap: 0.22rem;
-            padding: 0.38rem 0.45rem;
-            border-bottom: 1px solid rgba(212,175,55,0.12);
-            flex-shrink: 0;
-        }
         .t-input {
             background: rgba(255,255,255,0.04);
             border: 1px solid rgba(212,175,55,0.2);
@@ -303,31 +306,7 @@
             flex-shrink: 0;
         }
 
-        /* ---- Targets table ---- */
-        .targets-table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
-        .targets-table th {
-            color: var(--gold);
-            font-family: 'Bebas Neue', cursive;
-            font-size: 0.72rem;
-            letter-spacing: 0.07em;
-            padding: 0.26rem 0.3rem;
-            border-bottom: 1px solid rgba(212,175,55,0.26);
-            font-weight: 400;
-            text-align: right;
-            white-space: nowrap;
-        }
-        .targets-table th:nth-child(1),
-        .targets-table th:nth-child(2) { text-align: left; }
-        .targets-table td {
-            padding: 0.26rem 0.3rem;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            text-align: right;
-            white-space: nowrap;
-        }
-        .targets-table td:nth-child(1),
-        .targets-table td:nth-child(2) { text-align: left; }
-        .targets-table td:nth-child(2) { overflow: hidden; text-overflow: ellipsis; }
-        .targets-table tr:hover td { background: rgba(212,175,55,0.04); }
+        /* ---- Targets rows (div-based, shares player-row layout) ---- */
         .del-btn {
             background: transparent;
             border: none;
@@ -338,7 +317,6 @@
             line-height: 1;
         }
         .del-btn:hover { color: #E74C3C; }
-        .final-row td { border-top: 1.5px solid rgba(212,175,55,0.33); font-weight: 700; padding-top: 0.36rem; }
 
         /* ---- States ---- */
         .center-msg { text-align: center; color: var(--silver); opacity: 0.5; padding: 2rem 1rem; font-size: 0.78rem; }
@@ -743,15 +721,18 @@
                             {/* ===== LEFT: MY ROSTER ===== */}
                             <div className="panel">
                                 <div className="panel-header">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-                                    </svg>
-                                    MY ROSTER
-                                    {myRoster && (
-                                        <span style={{ marginLeft:'auto', color:'var(--silver)', fontSize:'0.58rem', opacity:0.5 }}>
-                                            {myRoster.players?.length || 0} players
-                                        </span>
-                                    )}
+                                    <div className="ph-title">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+                                        </svg>
+                                        MY ROSTER
+                                        {myRoster && (
+                                            <span style={{ marginLeft:'auto', color:'var(--silver)', fontSize:'0.58rem', opacity:0.5 }}>
+                                                {myRoster.players?.length || 0} players
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="ph-sub"></div>
                                 </div>
                                 <StatHeader addBtn={false} />
                                 <div className="panel-body">
@@ -792,22 +773,23 @@
                             {/* ===== CENTER: FREE AGENTS ===== */}
                             <div className="panel">
                                 <div className="panel-header">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                                    </svg>
-                                    AVAILABLE FREE AGENTS
-                                    <span style={{ marginLeft:'auto', color:'var(--silver)', fontSize:'0.58rem', opacity:0.5 }}>
-                                        {filteredFAs.length}
-                                    </span>
-                                </div>
-
-                                <div className="filter-bar">
-                                    {FA_POS_FILTERS.map(p => (
-                                        <button key={p} className={`filter-btn${posFilter===p?' active':''}`}
-                                            onClick={() => setPosFilter(p)}>{p}</button>
-                                    ))}
-                                    <input className="search-input" placeholder="Search..."
-                                        value={search} onChange={e => setSearch(e.target.value)} />
+                                    <div className="ph-title">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                        </svg>
+                                        AVAILABLE FREE AGENTS
+                                        <span style={{ marginLeft:'auto', color:'var(--silver)', fontSize:'0.58rem', opacity:0.5 }}>
+                                            {filteredFAs.length}
+                                        </span>
+                                    </div>
+                                    <div className="ph-sub">
+                                        {FA_POS_FILTERS.map(p => (
+                                            <button key={p} className={`filter-btn${posFilter===p?' active':''}`}
+                                                onClick={() => setPosFilter(p)}>{p}</button>
+                                        ))}
+                                        <input className="search-input" placeholder="Search..."
+                                            value={search} onChange={e => setSearch(e.target.value)} />
+                                    </div>
                                 </div>
 
                                 {/* Quick-add bar */}
@@ -871,96 +853,90 @@
                             {/* ===== RIGHT: FA TARGETS ===== */}
                             <div className="panel">
                                 <div className="panel-header">
-                                    {editingBudget ? (
-                                        <input className="budget-input-inline"
-                                            style={{ fontSize:'0.8rem', width:'62px' }}
-                                            type="number" min="0"
-                                            value={budgetDraft}
-                                            onChange={e => setBudgetDraft(e.target.value)}
-                                            onBlur={commitBudget}
-                                            onKeyDown={e => e.key === 'Enter' && commitBudget()}
-                                            autoFocus />
-                                    ) : (
-                                        <span title="Click to edit budget"
-                                            onClick={() => { setEditingBudget(true); setBudgetDraft(String(startingBudget)); }}
-                                            style={{ color:'var(--gold)', fontSize:'0.8rem', fontWeight:700, cursor:'pointer',
-                                                     flexShrink:0, background:'rgba(212,175,55,0.12)', borderRadius:'3px',
-                                                     padding:'0.05rem 0.3rem' }}>
-                                            ${startingBudget.toLocaleString()}
+                                    <div className="ph-title">
+                                        {editingBudget ? (
+                                            <input className="budget-input-inline"
+                                                style={{ fontSize:'0.8rem', width:'62px' }}
+                                                type="number" min="0"
+                                                value={budgetDraft}
+                                                onChange={e => setBudgetDraft(e.target.value)}
+                                                onBlur={commitBudget}
+                                                onKeyDown={e => e.key === 'Enter' && commitBudget()}
+                                                autoFocus />
+                                        ) : (
+                                            <span title="Click to edit budget"
+                                                onClick={() => { setEditingBudget(true); setBudgetDraft(String(startingBudget)); }}
+                                                style={{ color:'var(--gold)', fontSize:'0.8rem', fontWeight:700, cursor:'pointer',
+                                                         flexShrink:0, background:'rgba(212,175,55,0.12)', borderRadius:'3px',
+                                                         padding:'0.05rem 0.3rem' }}>
+                                                ${startingBudget.toLocaleString()}
+                                            </span>
+                                        )}
+                                        FA TARGETS
+                                        <span style={{ marginLeft:'auto', color:'var(--silver)', fontSize:'0.58rem', opacity:0.5 }}>
+                                            {targets.length > 0 ? `${targets.length} player${targets.length !== 1 ? 's' : ''}` : ''}
                                         </span>
-                                    )}
-                                    FA TARGETS
-                                    <span style={{ marginLeft:'auto', color:'var(--silver)', fontSize:'0.58rem', opacity:0.5 }}>
-                                        {targets.length > 0 ? `${targets.length} player${targets.length !== 1 ? 's' : ''}` : ''}
-                                    </span>
+                                    </div>
+                                    {/* Add form lives in ph-sub so all three panel-headers are the same height */}
+                                    <div className="ph-sub" style={{ gap:'0.22rem' }}>
+                                        <form onSubmit={handleFormAdd} style={{ display:'flex', alignItems:'center', gap:'0.22rem', width:'100%' }}>
+                                            <input className="t-input" style={{ width:'36px' }} placeholder="POS"
+                                                value={fPos} onChange={e => setFPos(e.target.value)} maxLength={3} />
+                                            <input className="t-input" style={{ flex:1 }} placeholder="Player name"
+                                                value={fName} onChange={e => setFName(e.target.value)} />
+                                            <input className="t-input" style={{ width:'44px' }} type="number"
+                                                placeholder="$" value={fCost} min="0"
+                                                onChange={e => setFCost(e.target.value)} />
+                                            <button type="submit" className="t-submit">+ Add</button>
+                                        </form>
+                                    </div>
                                 </div>
 
-                                {/* Manual add form */}
-                                <form className="add-target-form" onSubmit={handleFormAdd}>
-                                    <input className="t-input" style={{ width:'38px' }} placeholder="POS"
-                                        value={fPos} onChange={e => setFPos(e.target.value)} maxLength={3} />
-                                    <input className="t-input" style={{ flex:1 }} placeholder="Player name"
-                                        value={fName} onChange={e => setFName(e.target.value)} />
-                                    <input className="t-input" style={{ width:'46px' }} type="number"
-                                        placeholder="$" value={fCost} min="0"
-                                        onChange={e => setFCost(e.target.value)} />
-                                    <button type="submit" className="t-submit">+ Add</button>
-                                </form>
+                                {/* Column header row — sits at same level as stat-col-hdr in other panels */}
+                                <div className="stat-col-hdr" style={{ padding:'0.18rem 0.38rem' }}>
+                                    <span style={{ width:'30px', flexShrink:0 }}></span>
+                                    <span style={{ flex:1, minWidth:0 }}></span>
+                                    <span className="stat-lbl" style={{ width:'36px' }}>COST</span>
+                                    <span className="stat-lbl" style={{ width:'38px' }}>FA$</span>
+                                    <span className="stat-lbl" style={{ width:'46px' }}>REM.</span>
+                                    <span style={{ width:'20px', flexShrink:0 }}></span>
+                                </div>
 
-                                {/* Targets table */}
-                                <div className="panel-body" style={{ padding:'0 0.38rem 0.45rem' }}>
-                                    <table className="targets-table">
-                                        <thead>
-                                            <tr>
-                                                <th>PSN</th>
-                                                <th>Name</th>
-                                                <th>Cost</th>
-                                                <th>FA$</th>
-                                                <th>Rem.</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {targetRows.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={6} style={{ textAlign:'center', color:'var(--silver)', opacity:0.42, padding:'1.5rem 0', fontSize:'0.7rem' }}>
-                                                        Click a free agent or use the form above
-                                                    </td>
-                                                </tr>
-                                            )}
-                                            {targetRows.map(row => (
-                                                <tr key={row.id}>
-                                                    <td>
-                                                        <span className="pos-badge" style={{ color:posColor(row.pos), width:'28px', fontSize:'0.52rem' }}>
-                                                            {row.pos}
-                                                        </span>
-                                                    </td>
-                                                    <td title={row.name}>{row.name}</td>
-                                                    <td>{row.cost}</td>
-                                                    <td>{row.faDollar.toLocaleString()}</td>
-                                                    <td style={{ color:remColor(row.remaining), fontWeight:700 }}>
-                                                        {row.remaining.toLocaleString()}
-                                                    </td>
-                                                    <td>
-                                                        <button className="del-btn" onClick={() => deleteTarget(row.id)} title="Remove">&times;</button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                            {targetRows.length > 0 && (
-                                                <tr className="final-row">
-                                                    <td colSpan={4} style={{ fontFamily:'Bebas Neue,cursive', fontSize:'0.7rem',
-                                                                             color:'var(--gold)', letterSpacing:'0.06em',
-                                                                             textAlign:'right', paddingRight:'0.3rem' }}>
-                                                        BALANCE REMAINING
-                                                    </td>
-                                                    <td style={{ color:remColor(finalBalance), fontWeight:700 }}>
-                                                        {finalBalance.toLocaleString()}
-                                                    </td>
-                                                    <td></td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
+                                {/* Targets list — div-based rows matching left/center player-row layout */}
+                                <div className="panel-body" style={{ padding:'0.4rem 0.38rem' }}>
+                                    {targetRows.length === 0 && (
+                                        <div className="center-msg">Click a free agent or use the form above</div>
+                                    )}
+                                    {targetRows.map(row => (
+                                        <div key={row.id} className="player-row">
+                                            <span className="pos-badge"
+                                                style={{ color:posColor(row.pos), width:'30px', fontSize:'0.58rem', flexShrink:0 }}>
+                                                {row.pos}
+                                            </span>
+                                            <span className="player-name" style={{ fontSize:'0.82rem' }} title={row.name}>
+                                                {row.name}
+                                            </span>
+                                            <span className="sc" style={{ width:'36px', color:'var(--silver)', opacity:0.65 }}>{row.cost}</span>
+                                            <span className="sc" style={{ width:'38px', color:'var(--silver)', opacity:0.65 }}>{row.faDollar.toLocaleString()}</span>
+                                            <span className="sc" style={{ width:'46px', color:remColor(row.remaining), fontWeight:700 }}>{row.remaining.toLocaleString()}</span>
+                                            <button className="del-btn" onClick={() => deleteTarget(row.id)} title="Remove">&times;</button>
+                                        </div>
+                                    ))}
+                                    {targetRows.length > 0 && (
+                                        <div style={{ display:'flex', alignItems:'center', gap:'0.35rem',
+                                                      padding:'0.26rem 0.3rem', marginTop:'0.2rem',
+                                                      borderTop:'1.5px solid rgba(212,175,55,0.33)' }}>
+                                            <span style={{ flex:1, fontFamily:'Bebas Neue,cursive', fontSize:'0.7rem',
+                                                           color:'var(--gold)', letterSpacing:'0.06em',
+                                                           textAlign:'right', paddingRight:'0.3rem' }}>
+                                                BALANCE REMAINING
+                                            </span>
+                                            <span className="sc" style={{ width:'46px', color:remColor(finalBalance), fontWeight:700 }}>
+                                                {finalBalance.toLocaleString()}
+                                            </span>
+                                            <span style={{ width:'20px', flexShrink:0 }}></span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
