@@ -608,12 +608,19 @@
                     });
             }, [playersData, takenIds, statsData]);
 
-            const filteredFAs = useMemo(() => freeAgents.filter(fa => {
-                const posOk  = posFilter === 'ALL' || fa.norm === posFilter || fa.pos === posFilter;
-                const q      = search.toLowerCase();
-                const srchOk = !q || fa.name.toLowerCase().includes(q) || (fa.team||'').toLowerCase().includes(q);
-                return posOk && srchOk;
-            }), [freeAgents, posFilter, search]);
+            const filteredFAs = useMemo(() => {
+                const list = freeAgents.filter(fa => {
+                    const posOk  = posFilter === 'ALL' || fa.norm === posFilter || fa.pos === posFilter;
+                    const q      = search.toLowerCase();
+                    const srchOk = !q || fa.name.toLowerCase().includes(q) || (fa.team||'').toLowerCase().includes(q);
+                    return posOk && srchOk;
+                });
+                // ALL view: rank purely by total points, no position grouping
+                if (posFilter === 'ALL') {
+                    list.sort((a, b) => getPts(b.id) - getPts(a.id));
+                }
+                return list;
+            }, [freeAgents, posFilter, search, statsData]);
 
             const targetRows = useMemo(() => {
                 let bal = startingBudget;
