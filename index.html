@@ -1456,6 +1456,8 @@
                     id: targetLeagueId,
                     name: leagueInfo.name,
                     season: year,
+                    scoring_settings: leagueInfo.scoring_settings || {},
+                    roster_positions: leagueInfo.roster_positions || [],
                     rosters,
                     users
                 });
@@ -1482,6 +1484,22 @@
             return player?.team || '';
         }
 
+        // Sleeper pre-calculates pts_half_ppr/pts_ppr/pts_std only for offensive players.
+        // For IDP defensive players those fields are absent, so fall back to applying the
+        // league's scoring_settings weights to the raw stat fields.
+        function calcRawPts(s) {
+            if (!s) return null;
+            const pre = s.pts_half_ppr ?? s.pts_ppr ?? s.pts_std ?? null;
+            if (pre !== null) return Number(pre);
+            const scoring = currentLeague?.scoring_settings;
+            if (!scoring) return null;
+            let total = 0, hasAny = false;
+            for (const [field, weight] of Object.entries(scoring)) {
+                if (s[field] != null) { total += s[field] * weight; hasAny = true; }
+            }
+            return hasAny ? total : null;
+        }
+
         function getPlayerStats(playerId) {
             const player = playersData[playerId];
             const s = statsData[playerId];
@@ -1490,8 +1508,8 @@
             // Years of experience
             const yrs = player?.years_exp != null ? player.years_exp : '-';
 
-            // Fantasy points (half PPR preferred)
-            const rawPts = s ? (s.pts_half_ppr ?? s.pts_ppr ?? s.pts_std ?? null) : null;
+            // Fantasy points — uses league scoring_settings for IDP players
+            const rawPts = calcRawPts(s);
             const pts = rawPts !== null ? Number(rawPts).toFixed(1) : '-';
 
             // Games played
@@ -2053,6 +2071,8 @@
                                 ties: myRoster?.settings?.ties || 0,
                                 championships: 0,
                                 season: selectedYear,
+                                scoring_settings: league.scoring_settings || {},
+                                roster_positions: league.roster_positions || [],
                                 rosters,
                                 users
                             };

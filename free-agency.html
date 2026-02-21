@@ -532,11 +532,27 @@
 
             // ---- Helpers ----
 
+            // Calculate raw pts from stats object.
+            // Sleeper pre-calculates pts_half_ppr/pts_ppr/pts_std for offensive players only;
+            // IDP defensive players have no such field, so we fall back to applying the
+            // league's own scoring_settings weights to the raw stat fields.
+            function calcRawPts(s) {
+                if (!s) return null;
+                const pre = s.pts_half_ppr ?? s.pts_ppr ?? s.pts_std ?? null;
+                if (pre !== null) return Number(pre);
+                const scoring = leagueInfo?.scoring_settings;
+                if (!scoring) return null;
+                let total = 0, hasAny = false;
+                for (const [field, weight] of Object.entries(scoring)) {
+                    if (s[field] != null) { total += s[field] * weight; hasAny = true; }
+                }
+                return hasAny ? total : null;
+            }
+
             // Raw pts for sorting (returns -1 when no data so players with data sort above those without)
             function getPts(id) {
-                const s = statsData[id];
-                const raw = s ? (s.pts_half_ppr ?? s.pts_ppr ?? s.pts_std ?? null) : null;
-                return raw !== null ? Number(raw) : -1;
+                const raw = calcRawPts(statsData[id]);
+                return raw !== null ? raw : -1;
             }
 
             // FantasyPros player page URL derived from full name
@@ -555,7 +571,7 @@
                 const player = playersData[playerId];
                 const s = statsData[playerId];
                 const yrs = player?.years_exp != null ? player.years_exp : '-';
-                const rawPts = s ? (s.pts_half_ppr ?? s.pts_ppr ?? s.pts_std ?? null) : null;
+                const rawPts = calcRawPts(s);
                 const pts = rawPts !== null ? Number(rawPts).toFixed(1) : '-';
                 const gp  = s?.gp != null ? s.gp : '-';
                 const avg = (rawPts !== null && s?.gp && s.gp > 0)
